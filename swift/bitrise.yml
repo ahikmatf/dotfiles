@@ -1,0 +1,80 @@
+---
+format_version: '8'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: ios
+trigger_map:
+- pull_request_source_branch: "*"
+  pull_request_target_branch: development
+  workflow: testflight
+workflows:
+  testflight:
+    steps:
+    - activate-ssh-key@4:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - script@1:
+        inputs:
+        - is_debug: 'yes'
+        - content: git clone -b $BITRISE_GIT_BRANCH --depth 1 --single-branch $GIT_REPOSITORY_URL
+            .
+        title: clone branch git
+    - cache-pull@2:
+        inputs:
+        - is_debug_mode: 'true'
+    - script@1:
+        title: Set GEM_CACHE_PATH env var
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            RBENV_DIR="`cd $(rbenv which ruby)/../..;pwd`"
+            echo "Gem cache directory: $RBENV_DIR"
+            envman add --key GEM_CACHE_PATH --value $RBENV_DIR
+    - script@1:
+        title: pod install
+        inputs:
+        - content: |-
+            gem install cocoapods -v 1.8.3
+            pod install
+    - cache-push@2:
+        inputs:
+        - run_if: ".IsCI"
+        - compress_archive: 'true'
+        - cache_paths: |-
+            $BITRISE_CACHE_DIR
+            ./Pods -> ./Podfile.lock
+            $GEM_CACHE_PATH
+    - certificate-and-profile-installer@1: {}
+    - set-xcode-build-number@1:
+        inputs:
+        - build_short_version_string: "$BITRISE_VERSION_NUMBER"
+        - plist_path: "XXX-PLEASE.SPECIFY.PLIST.PATH"
+    - xcode-archive@2:
+        inputs:
+        - team_id: XXX-PLEASE.SPECIFY.TEAM.ID
+        - compile_bitcode: 'no'
+        - upload_bitcode: 'no'
+        - export_method: app-store
+    - deploy-to-itunesconnect-application-loader@0:
+        inputs:
+        - app_password: "$APP_SPECIFIC_PASSWORD"
+        - itunescon_user: "$APPLE_ACCOUNT"
+    meta:
+      bitrise.io:
+        stack: osx-xcode-11.3.x
+app:
+  envs:
+  - opts:
+      is_expand: false
+    BITRISE_PROJECT_PATH: XXX-PLEASE.SPECIFY.XCODEPROJ.XCWORKSPACE.PATH
+  - opts:
+      is_expand: false
+    BITRISE_SCHEME: XXX-PLEASE.SPECIFY.SCHEME.NAME
+  - opts:
+      is_expand: false
+    BITRISE_EXPORT_METHOD: app-store
+  - opts:
+      is_expand: false
+    BITRISE_IPA_PATH_FL: "/Users/vagrant/git/XXX-PLEASE.SPECIFY.EXPORTED.IPA.NAME"
+  - opts:
+      is_expand: false
+    BITRISE_VERSION_NUMBER: 3.0.0
