@@ -7,3 +7,5 @@ story:
 - use specific xcode version
 - update app version through plist
 - upload to testflight using ipa file location
+- use specific cocoapods version
+- have a trigger map on merge-request to developmetn and on push to release branch
